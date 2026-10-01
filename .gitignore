@@ -1,0 +1,14 @@
+# Terraform / Terragrunt artifacts
+**/.terragrunt-cache/
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/crash.log
+**/crash.*.log
+**/.DS_Store
+
+# Local variable files
+**/*.tfvars
+!**/example.tfvars

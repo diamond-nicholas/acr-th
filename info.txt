@@ -1,0 +1,76 @@
+# Take Home SUmmary
+
+
+A Premium Azure Container Registry in West Europe, deployed with Terraform
+and Terragrunt. It is private-only, zone-redundant, geo-replicated, audited
+and protected against deletion.
+
+Human administration and CI/CD are separated: Azure Bastion provides
+controlled access to private management resources, while CI/CD will run from
+a dedicated private runner with network access to the registry.
+
+1. SECURITY
+
+---
+
+* Public network access disabled; ACR is accessed through a Private Endpoint
+  and private DNS.
+* Admin account and anonymous pulls disabled; access uses Entra ID and RBAC.
+* AcrPush/AcrPull granted only to explicitly configured principals.
+* Export policy disabled.
+* AzureServices bypass supports server-side Azure operations such as
+  `az acr import`.
+* Terraform state uses Entra ID authentication rather than storage keys.
+
+2. RESILIENCE
+
+---
+
+* Zone redundancy enabled in West Europe and the North Europe replica.
+* Geo-replication provides regional resilience and additional pull capacity.
+* Deletion protected by both Terraform `prevent_destroy` and an Azure
+  `CanNotDelete` management lock.
+
+3. NETWORK / ACCESS
+
+---
+
+* Dedicated subnet for the ACR Private Endpoint.
+* Private management VM with no public IP.
+* Azure Bastion provides human SSH/RDP access to the private VM.
+* Bastion is **not used for CI/CD**.
+* CI/CD will use a dedicated private runner with connectivity to the ACR
+  Private Endpoint.
+
+4. INFRASTRUCTURE AS CODE
+
+---
+
+* Reusable Terraform module with Terragrunt environment units.
+* Remote Azure Storage state with locking.
+* Environment-specific values come from `prod.tfvars`; no environment
+  CIDRs or names are hardcoded in resources.
+* Terraform/provider versions are constrained and the provider lock file
+  is committed.
+* Input validation and consistent resource tagging are implemented.
+
+5. BASE IMAGE IMPORT
+
+---
+
+`scripts/import-base-image.sh` uses `az acr import`, so Azure performs the
+image import server-side. The image does not pass through the operator's
+machine or CI runner.
+
+
+---
+AREAS TO COVER IF MORE TIME
+
+* Dedicated private CI/CD runner with OIDC authentication.
+* PR-based Terraform plan and approval-gated apply.
+* Defender for Containers image scanning.
+* Image signing with Notation and signature verification.
+* Checkov/TFLint security and quality checks.
+* CMK encryption if required by compliance.
+
+

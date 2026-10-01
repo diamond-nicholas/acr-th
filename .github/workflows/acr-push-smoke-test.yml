@@ -1,0 +1,55 @@
+name: ACR push smoke test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  acr-push:
+    name: Verify ACR push from self-hosted runner
+    runs-on: [self-hosted, linux, x64]
+    permissions:
+      contents: read
+    env:
+      ACR_NAME: eastusprodacr01
+      ACR_LOGIN_SERVER: eastusprodacr01.azurecr.io
+      IMAGE_NAME: smoke-test
+      IMAGE_TAG: ${{ github.run_id }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+    steps:
+      - name: Azure login
+        shell: bash
+        run: |
+          set -euo pipefail
+          az login --service-principal \
+            --username "$AZURE_CLIENT_ID" \
+            --password "$AZURE_CLIENT_SECRET" \
+            --tenant "$AZURE_TENANT_ID"
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+
+      - name: Login to ACR
+        shell: bash
+        run: |
+          set -euo pipefail
+          az acr login --name "$ACR_NAME"
+
+      - name: Push a test image to ACR
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull nginx:latest
+          docker tag nginx:latest "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+          docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+          echo "Pushed $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Confirm repository tag exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          az acr repository show-tags \
+            --name "$ACR_NAME" \
+            --repository "$IMAGE_NAME" \
+            --top 5
