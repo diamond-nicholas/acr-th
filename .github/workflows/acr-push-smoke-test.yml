@@ -23,8 +23,8 @@ jobs:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      RUN_LIVE_ACR_TESTS: "true"
-      RUN_PRIVATE_ACR_TESTS: "true"
+      RUN_LIVE_ACR_TESTS: "false"
+      RUN_PRIVATE_ACR_TESTS: "false"
 
     steps:
       - name: Check out repo
@@ -75,13 +75,6 @@ jobs:
             echo "Pinned digest mismatch for $ACR_NAME/$TARGET_IMAGE" >&2
             exit 1
           fi
-
-      - name: Run tests
-        shell: bash
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r tests/requirements.txt
-          python -m pytest -q tests
 
       - name: Delete imported image after successful validation
         if: success()

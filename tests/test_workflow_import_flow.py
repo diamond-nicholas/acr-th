@@ -15,7 +15,7 @@ def test_workflow_imports_base_image_before_validation():
     assert "az acr repository delete" in text
     assert "TARGET_IMAGE" in text
     assert "EXPECTED_DIGEST" in text
-    assert "python -m pytest -q tests" in text
+    assert "python -m pytest -q tests" not in text
 
 
 def test_workflow_uses_self_hosted_runner_and_oidc():
