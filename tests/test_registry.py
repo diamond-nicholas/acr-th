@@ -4,6 +4,11 @@ import pytest
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.containerregistry import ContainerRegistryManagementClient
 
+from tests.config import load_runtime_config
+
+
+CONFIG = load_runtime_config()
+
 
 @pytest.mark.live
 @pytest.mark.skipif(
@@ -11,12 +16,13 @@ from azure.mgmt.containerregistry import ContainerRegistryManagementClient
     reason="Live registry checks run only when RUN_LIVE_ACR_TESTS=true",
 )
 def test_registry_configuration():
-    subscription_id = os.environ["AZURE_SUBSCRIPTION_ID"]
-    acr_name = "eastusprodacr01"
+    subscription_id = CONFIG["subscription_id"]
+    acr_name = CONFIG["acr_name"]
+    resource_group_name = CONFIG["resource_group_name"]
 
     credential = DefaultAzureCredential()
     client = ContainerRegistryManagementClient(credential, subscription_id)
-    registry = client.registries.get("rg-acr-prod-eastus", acr_name)
+    registry = client.registries.get(resource_group_name, acr_name)
 
     assert registry.location.lower() == "eastus"
     assert registry.sku.name == "Premium"
@@ -25,5 +31,5 @@ def test_registry_configuration():
     assert registry.anonymous_pull_enabled is False
     assert registry.zone_redundancy == "Enabled"
 
-    replicas = list(client.replications.list("rg-acr-prod-eastus", acr_name))
+    replicas = list(client.replications.list(resource_group_name, acr_name))
     assert replicas == []

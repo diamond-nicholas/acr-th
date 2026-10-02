@@ -40,6 +40,23 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Import pinned base image into ACR
+        shell: bash
+        run: |
+          set -euo pipefail
+          if az acr repository show --name "$ACR_NAME" --image "$TARGET_IMAGE" --query "imageId" -o tsv >/dev/null 2>&1; then
+            echo "Previous import already exists; deleting stale tag before re-import."
+            az acr repository delete --name "$ACR_NAME" --image "$TARGET_IMAGE" --yes || true
+          fi
+          export ARM_SUBSCRIPTION_ID="${ARM_SUBSCRIPTION_ID}"
+          export AZURE_CLIENT_ID="${AZURE_CLIENT_ID}"
+          export AZURE_TENANT_ID="${AZURE_TENANT_ID}"
+          export ACR_NAME="${ACR_NAME}"
+          export SOURCE_IMAGE="${SOURCE_IMAGE}"
+          export TARGET_IMAGE="${TARGET_IMAGE}"
+          export FORCE="false"
+          bash scripts/import-base-image.sh
+
       - name: Confirm imported digest matches pinned value
         shell: bash
         run: |
@@ -58,3 +75,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r tests/requirements.txt
           python -m pytest -q tests
+
+      - name: Delete imported image after successful validation
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          az acr repository delete --name "$ACR_NAME" --image "$TARGET_IMAGE" --yes || echo "Cleanup skipped: image was already absent."

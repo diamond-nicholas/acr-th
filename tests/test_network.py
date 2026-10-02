@@ -4,6 +4,11 @@ import socket
 import pytest
 import requests
 
+from tests.config import load_runtime_config
+
+
+CONFIG = load_runtime_config()
+
 
 @pytest.mark.private
 @pytest.mark.skipif(
@@ -11,7 +16,7 @@ import requests
     reason="Private registry checks run only when RUN_PRIVATE_ACR_TESTS=true",
 )
 def test_private_acr_dns_and_http():
-    acr_name = "eastusprodacr01"
+    acr_name = CONFIG["acr_name"]
     fqdn = f"{acr_name}.azurecr.io"
     addrs = socket.getaddrinfo(fqdn, 443, proto=socket.IPPROTO_TCP)
     ips = sorted({item[4][0] for item in addrs if item[4]})
