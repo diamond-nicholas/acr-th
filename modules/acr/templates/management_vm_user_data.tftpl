@@ -21,13 +21,6 @@ usermod -aG docker ${vm_admin_username}
 chown root:docker /var/run/docker.sock
 chmod 660 /var/run/docker.sock
 
-# Authenticate Azure CLI using the VM's system-assigned managed identity.
-# This avoids long-lived secrets and prevents them from appearing in cloud-init logs.
-az login --identity >/dev/null
-az account set --subscription "${subscription_id}"
-az acr login --name "${acr_name}"
-
-# Optionally install and register a GitHub self-hosted runner
 if [ "${github_runner_enabled}" = "true" ] && [ -n "${github_runner_url}" ] && [ -n "${github_runner_token}" ]; then
   RUNNER_HOME="/home/${vm_admin_username}/actions-runner"
   mkdir -p "$RUNNER_HOME"
@@ -39,23 +32,9 @@ if [ "${github_runner_enabled}" = "true" ] && [ -n "${github_runner_url}" ] && [
     curl -fsSL -o actions-runner-linux-x64.tar.gz -L https://github.com/actions/runner/releases/download/v2.337.0/actions-runner-linux-x64-2.337.0.tar.gz
     tar xzf actions-runner-linux-x64.tar.gz
     ./config.sh --url '${github_runner_url}' --token '${github_runner_token}' --name '${github_runner_name}' --work _work --labels '${github_runner_labels}' --unattended
-    cat > /etc/systemd/system/actions-runner.service <<SERVICE
-[Unit]
-Description=GitHub Actions Runner
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-User=${vm_admin_username}
-WorkingDirectory=$RUNNER_HOME
-ExecStart=$RUNNER_HOME/run.sh
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-SERVICE
-    systemctl daemon-reload
-    systemctl enable --now actions-runner.service
   "
+
+  cd "$RUNNER_HOME"
+  ./svc.sh install "${vm_admin_username}"
+  ./svc.sh start
 fi

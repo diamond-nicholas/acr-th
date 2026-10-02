@@ -25,7 +25,8 @@ resource "azurerm_role_definition" "acr_image_tasks" {
     actions = [
       "Microsoft.ContainerRegistry/registries/read",
       "Microsoft.ContainerRegistry/registries/pull/read",
-      "Microsoft.ContainerRegistry/registries/push/write"
+      "Microsoft.ContainerRegistry/registries/push/write",
+      "Microsoft.ContainerRegistry/registries/importImage/action"
     ]
     not_actions = []
   }
