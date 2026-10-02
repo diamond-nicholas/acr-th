@@ -51,6 +51,19 @@ if [[ -n "${ARM_SUBSCRIPTION_ID:-}" ]]; then
   subscription_args=(--subscription "${ARM_SUBSCRIPTION_ID}")
 fi
 
+# The target tag can already exist because Terraform imported it earlier or a
+# previous workflow run left it behind. Delete it before the import so the
+# import step is idempotent and does not fail with a tag-conflict error.
+if [[ -n "${TARGET_IMAGE:-}" ]]; then
+  echo "Ensuring stale target tag is removed before import: ${TARGET_IMAGE}"
+  az acr repository delete \
+    --name "${ACR_NAME}" \
+    --image "${TARGET_IMAGE}" \
+    --yes \
+    "${subscription_args[@]+"${subscription_args[@]}"}" \
+    || true
+fi
+
 import_args=(
   --name "${ACR_NAME}"
   --source "${SOURCE_IMAGE}"
