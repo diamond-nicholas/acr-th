@@ -75,7 +75,16 @@ fi
 
 echo "Importing ${SOURCE_IMAGE} into ${ACR_NAME}.azurecr.io/${TARGET_IMAGE}"
 
-az acr import "${import_args[@]}" "${subscription_args[@]+"${subscription_args[@]}"}"
+if ! az acr import "${import_args[@]}" "${subscription_args[@]+"${subscription_args[@]}"}"; then
+  if [[ "${FORCE}" != "true" ]]; then
+    echo "Import hit a stale tag conflict; retrying with --force."
+    import_args+=(--force)
+    az acr import "${import_args[@]}" "${subscription_args[@]+"${subscription_args[@]}"}"
+  else
+    echo "Import failed even with --force. This usually indicates a registry or policy issue." >&2
+    exit 1
+  fi
+fi
 
 az acr repository show \
   --name "${ACR_NAME}" \

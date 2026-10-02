@@ -64,7 +64,7 @@ jobs:
           export RESOURCE_GROUP="${RESOURCE_GROUP}"
           export SOURCE_IMAGE="${SOURCE_IMAGE}"
           export TARGET_IMAGE="${TARGET_IMAGE}"
-          export FORCE="false"
+          export FORCE="true"
           bash scripts/import-base-image.sh
 
       - name: Confirm imported digest matches pinned value

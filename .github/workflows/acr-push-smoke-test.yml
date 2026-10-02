@@ -59,7 +59,7 @@ jobs:
           export ACR_NAME="${ACR_NAME}"
           export SOURCE_IMAGE="${SOURCE_IMAGE}"
           export TARGET_IMAGE="${TARGET_IMAGE}"
-          export FORCE="false"
+          export FORCE="true"
           bash scripts/import-base-image.sh
 
       - name: Confirm imported digest matches pinned value
