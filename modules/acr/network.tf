@@ -23,15 +23,27 @@ resource "azurerm_network_security_group" "private_endpoints" {
   tags                = local.common_tags
 
   security_rule {
-    name                       = "allow-https-from-vnet"
+    name                       = "allow-https-from-management"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
-    source_address_prefixes    = var.vnet_address_space
+    source_address_prefixes    = [var.management_subnet_prefix]
     source_port_range          = "*"
     destination_address_prefix = "*"
     destination_port_range     = "443"
+  }
+
+  security_rule {
+    name                       = "deny-vnet-inbound"
+    priority                   = 4000
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_address_prefix      = "VirtualNetwork"
+    source_port_range          = "*"
+    destination_address_prefix = "*"
+    destination_port_range     = "*"
   }
 }
 
@@ -90,15 +102,27 @@ resource "azurerm_network_security_group" "management" {
   tags                = local.common_tags
 
   security_rule {
-    name                       = "allow-ssh-from-vnet"
+    name                       = "allow-ssh-from-bastion"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
-    source_address_prefix      = "VirtualNetwork"
+    source_address_prefix      = var.bastion_subnet_prefix
     source_port_range          = "*"
     destination_address_prefix = "*"
     destination_port_range     = "22"
+  }
+
+  security_rule {
+    name                       = "deny-vnet-inbound"
+    priority                   = 4000
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_address_prefix      = "VirtualNetwork"
+    source_port_range          = "*"
+    destination_address_prefix = "*"
+    destination_port_range     = "*"
   }
 
   security_rule {
@@ -114,15 +138,15 @@ resource "azurerm_network_security_group" "management" {
   }
 
   security_rule {
-    name                       = "allow-dns-egress"
-    priority                   = 101
+    name                       = "deny-internet-outbound"
+    priority                   = 4000
     direction                  = "Outbound"
-    access                     = "Allow"
-    protocol                   = "Udp"
+    access                     = "Deny"
+    protocol                   = "*"
     source_address_prefix      = "VirtualNetwork"
     source_port_range          = "*"
     destination_address_prefix = "Internet"
-    destination_port_range     = "53"
+    destination_port_range     = "*"
   }
 }
 

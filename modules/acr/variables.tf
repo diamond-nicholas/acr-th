@@ -136,6 +136,12 @@ variable "acr_image_tasks_service_principal_name" {
   default     = "sp-acr-image-tasks"
 }
 
+variable "base_image_digest" {
+  description = "Pinned digest for the Azure Linux base image imported into the registry."
+  type        = string
+  default     = "sha256:1324a2cf7ed34e5f48a1022816b205782b86c7305651658e611dcd3d30756751"
+}
+
 # Management VM
 
 variable "vm_admin_username" {
@@ -158,7 +164,7 @@ variable "vm_admin_ssh_public_key" {
 variable "github_actions_oidc_subject" {
   description = "GitHub OIDC subject used by the federated identity credential for ACR import actions."
   type        = string
-  default     = "repo:diamond-nicholas/acr-th:ref:refs/heads/main"
+  default     = "repo:diamond-nicholas/acr-th:environment:prod"
 }
 
 variable "github_runner_enabled" {

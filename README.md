@@ -68,22 +68,31 @@ This repo includes a GitHub Actions smoke test workflow that:
 
 - authenticates to Azure with GitHub OIDC and no long-lived client secret
 - checks out the repo
-- runs [scripts/import-base-image.sh](scripts/import-base-image.sh)
-- uses `az acr import` to bring an official base image into the private ACR
-- confirms the imported repository tag is present in the registry
+- confirms the pinned Azure Linux image digest matches the expected value
+- validates the private ACR import path without re-importing a mutable tag on each run
 
 The workflow is designed for a private-network CI model, and it is appropriate when the runner is isolated, patched, and limited to the required registry access path. No static Azure client secret is required; the identity is federated via GitHub and scoped to the ACR.
+
+The script at [scripts/import-base-image.sh](scripts/import-base-image.sh) remains available as a manual break-glass option for ad hoc import work, but the normal workflow path verifies the pinned digest instead of re-running import on every execution.
+
+## Testing plan
+
+The repo uses three validation layers:
+
+1. Static checks: the Terraform and tfvars parsing checks in [tests/test_example_tfvars.py](tests/test_example_tfvars.py).
+2. Live registry checks: the Azure SDK checks in [tests/test_registry.py](tests/test_registry.py), which use `DefaultAzureCredential` and run under OIDC in GitHub Actions.
+3. Network checks: the private-endpoint validation in [tests/test_network.py](tests/test_network.py), which runs only on the private runner and confirms the ACR resolves to the VNet address range and returns 401 from the registry root.
 
 For local validation, keep the Python test environment local to the repo with:
 
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install pytest
-pytest tests/test_example_tfvars.py -q
+python -m pip install -r tests/requirements.txt
+pytest -q tests
 ```
 
-The Python validation script in [tests/test_example_tfvars.py](tests/test_example_tfvars.py) is part of the repo and should be committed because it protects the example tfvars contract and catches parse errors before deployment.
+The Python validation scripts in [tests](tests) are part of the repo and should be committed because they protect the tfvars contract and the live registry assumptions before deployment.
 
 ## Working assumptions
 

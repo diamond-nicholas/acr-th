@@ -23,10 +23,11 @@ for private registry access.
   `az acr import`.
 * Terraform Remote state is configured to use Entra authentication rather than storage keys.
 * GitHub Actions authenticates to Azure through GitHub OIDC (`azure/login@v2`) instead of a long-lived client secret.
-* The VM bootstraps with the system-assigned managed identity (`az login --identity`) and does not expose service-principal credentials in cloud-init logs.
-* The VM should not hold broad AcrPush rights for the registry when GitHub OIDC is the pipeline authentication path; least-privilege access should be used for all workloads.
-* The self-hosted runner and pipeline are designed to run inside the private network, while only short-lived identity tokens or managed-identity access are used instead of static client secrets.
+* The VM bootstraps with no registry login requirement and does not expose service-principal credentials in cloud-init logs.
+* OIDC is the only registry identity used by the workflow; the VM itself is not granted registry write access for the private CI path.
+* The self-hosted runner and pipeline are designed to run inside the private network, while only short-lived identity tokens are used instead of static client secrets.
 * Local validation environments such as `.venv/` are intentionally excluded from source control; only the repo validation scripts are versioned.
+* Egress is limited to 443 by NSG policy. Production would add Azure Firewall with an allowlist for GitHub Actions and the standard Azure identity endpoints if tighter filtering is required.
 
 
 

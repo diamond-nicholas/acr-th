@@ -17,15 +17,14 @@ resource "azurerm_role_assignment" "acr_pull" {
 resource "azurerm_role_definition" "acr_image_tasks" {
   count = var.acr_image_tasks_service_principal_enabled ? 1 : 0
 
-  name        = "ACR Image Task Operator (${var.acr_name})"
+  name        = "ACR Import and Push (${var.acr_name})"
   scope       = azurerm_container_registry.this.id
-  description = "Least-privilege permissions to manage ACR image tasks and repository content for the registry."
+  description = "Least-privilege permissions to import and push the pinned base image for the registry."
 
   permissions {
     actions = [
       "Microsoft.ContainerRegistry/registries/read",
       "Microsoft.ContainerRegistry/registries/pull/read",
-      "Microsoft.ContainerRegistry/registries/push/write",
       "Microsoft.ContainerRegistry/registries/importImage/action"
     ]
     not_actions = []

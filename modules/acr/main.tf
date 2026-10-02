@@ -95,8 +95,6 @@ resource "azurerm_linux_virtual_machine" "management" {
   }
 
   custom_data = base64encode(templatefile("${path.module}/templates/management_vm_user_data.tftpl", {
-    subscription_id       = var.subscription_id
-    acr_name              = var.acr_name
     vm_admin_username     = var.vm_admin_username
     github_runner_enabled = var.github_runner_enabled
     github_runner_url     = var.github_runner_url

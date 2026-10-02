@@ -33,10 +33,10 @@ acr_pull_principal_ids                    = []
 acr_image_tasks_service_principal_enabled = true
 acr_image_tasks_service_principal_name    = "sp-westeuropeprodacr01-image-tasks"
 
-github_actions_oidc_subject = "repo:<organization>/<repository>:ref:refs/heads/main"
+github_actions_oidc_subject = "repo:<organization>/<repository>:environment:prod"
 github_runner_enabled       = true
 github_runner_url           = "https://github.com/<organization>/<repository>"
-github_runner_token         = "<replace-with-github-runner-registration-token>"
+github_runner_token         = "<set-via-TF_VAR_github_runner_token>"
 github_runner_name          = "vm-westeuropeprodacr01-management"
 github_runner_labels        = "self-hosted,linux,x64"
 

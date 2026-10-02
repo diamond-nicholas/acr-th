@@ -7,6 +7,7 @@ jobs:
   acr-push:
     name: Verify ACR import flow from self-hosted runner
     runs-on: [self-hosted, linux, x64]
+    environment: prod
     permissions:
       contents: read
       id-token: write
@@ -14,7 +15,7 @@ jobs:
       ACR_NAME: westeuropeprodacr01
       SOURCE_IMAGE: mcr.microsoft.com/azurelinux/base/core:3.0
       TARGET_IMAGE: base/azurelinux:3.0
-      FORCE: "false"
+      EXPECTED_DIGEST: sha256:1324a2cf7ed34e5f48a1022816b205782b86c7305651658e611dcd3d30756751
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -30,17 +31,20 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Run ACR import script
+      - name: Confirm imported digest matches pinned value
         shell: bash
         run: |
           set -euo pipefail
-          bash ./scripts/import-base-image.sh
+          digest="$(az acr repository show --name "$ACR_NAME" --image "base/azurelinux:3.0" --query digest -o tsv)"
+          echo "Observed digest: $digest"
+          echo "Expected digest: $EXPECTED_DIGEST"
+          if [[ "$digest" != "$EXPECTED_DIGEST" ]]; then
+            echo "Pinned digest mismatch" >&2
+            exit 1
+          fi
 
-      - name: Confirm imported tag exists
+      - name: Run tests
         shell: bash
         run: |
-          set -euo pipefail
-          az acr repository show-tags \
-            --name "$ACR_NAME" \
-            --repository "base/azurelinux" \
-            --top 10
+          python3 -m pip install -r tests/requirements.txt
+          python3 -m pytest -q tests
