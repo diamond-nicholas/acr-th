@@ -13,6 +13,7 @@ jobs:
       id-token: write
     env:
       ACR_NAME: eastusprodacr01
+      RESOURCE_GROUP: rg-acr-prod-eastus
       SOURCE_IMAGE: mcr.microsoft.com/azurelinux/base/core:3.0
       TARGET_IMAGE: base/azurelinux:3.0
       EXPECTED_DIGEST: sha256:1324a2cf7ed34e5f48a1022816b205782b86c7305651658e611dcd3d30756751
@@ -43,11 +44,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          digest="$(az acr repository show --name "$ACR_NAME" --image "base/azurelinux:3.0" --query digest -o tsv)"
+          digest="$(az acr repository show --name "$ACR_NAME" --image "$TARGET_IMAGE" --query digest -o tsv)"
           echo "Observed digest: $digest"
           echo "Expected digest: $EXPECTED_DIGEST"
           if [[ "$digest" != "$EXPECTED_DIGEST" ]]; then
-            echo "Pinned digest mismatch" >&2
+            echo "Pinned digest mismatch for $ACR_NAME/$TARGET_IMAGE" >&2
             exit 1
           fi
 
