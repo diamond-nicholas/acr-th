@@ -2,20 +2,28 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github" / "workflows" / "acr-push-smoke-test.yml"
+SMOKE_WORKFLOW = ROOT / ".github" / "workflows" / "acr-push-smoke-test.yml"
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "tests.yml"
 
 
 def test_workflow_imports_base_image_before_validation():
-    text = WORKFLOW.read_text()
+    text = SMOKE_WORKFLOW.read_text()
 
     assert "bash scripts/import-base-image.sh" in text
     assert "Import pinned base image into ACR" in text
     assert "az acr repository delete" in text
     assert "TARGET_IMAGE" in text
     assert "EXPECTED_DIGEST" in text
+    assert "python -m pytest -q tests" in text
 
 
-def test_workflow_runs_pytest_in_ci():
-    text = WORKFLOW.read_text()
+def test_ci_workflow_deletes_then_imports_before_pytest():
+    text = CI_WORKFLOW.read_text()
 
+    assert "az acr repository delete" in text
+    assert "bash scripts/import-base-image.sh" in text
+    assert "azure/login@v2" in text
+    assert "AZURE_CLIENT_ID" in text
+    assert "AZURE_TENANT_ID" in text
+    assert "AZURE_SUBSCRIPTION_ID" in text
     assert "python -m pytest -q tests" in text

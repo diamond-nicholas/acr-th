@@ -40,7 +40,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Import pinned base image into ACR
+      - name: Delete stale imported image if it exists
         shell: bash
         run: |
           set -euo pipefail
@@ -48,6 +48,11 @@ jobs:
             echo "Previous import already exists; deleting stale tag before re-import."
             az acr repository delete --name "$ACR_NAME" --image "$TARGET_IMAGE" --yes || true
           fi
+
+      - name: Import pinned base image into ACR
+        shell: bash
+        run: |
+          set -euo pipefail
           export ARM_SUBSCRIPTION_ID="${ARM_SUBSCRIPTION_ID}"
           export AZURE_CLIENT_ID="${AZURE_CLIENT_ID}"
           export AZURE_TENANT_ID="${AZURE_TENANT_ID}"

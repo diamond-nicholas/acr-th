@@ -12,9 +12,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
     env:
       RUN_LIVE_ACR_TESTS: "false"
       RUN_PRIVATE_ACR_TESTS: "false"
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ACR_NAME: eastusprodacr01
+      RESOURCE_GROUP: rg-acr-prod-eastus
+      SOURCE_IMAGE: mcr.microsoft.com/azurelinux/base/core:3.0
+      TARGET_IMAGE: base/azurelinux:3.0
+      EXPECTED_DIGEST: sha256:1324a2cf7ed34e5f48a1022816b205782b86c7305651658e611dcd3d30756751
 
     steps:
       - name: Check out repo
@@ -25,43 +35,48 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Resolve runtime config from prod.tfvars
+      - name: Azure login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Delete imported image if it exists
         shell: bash
         run: |
-          python - <<'PY'
-          import ast
-          import os
-          from pathlib import Path
+          set -euo pipefail
+          if az acr repository show --name "$ACR_NAME" --image "$TARGET_IMAGE" --query "imageId" -o tsv >/dev/null 2>&1; then
+            echo "Previous import already exists; deleting stale tag before re-import."
+            az acr repository delete --name "$ACR_NAME" --image "$TARGET_IMAGE" --yes || true
+          fi
 
-          path = Path('prod.tfvars')
-          values = {}
-          for raw in path.read_text().splitlines():
-              line = raw.strip()
-              if not line or line.startswith('#') or '=' not in line:
-                  continue
-              key, value = [part.strip() for part in raw.split('=', 1)]
-              value = value.strip()
-              if value.startswith('"') and value.endswith('"'):
-                  parsed = ast.literal_eval(value)
-              elif value.lower() == 'true':
-                  parsed = True
-              elif value.lower() == 'false':
-                  parsed = False
-              elif value.startswith('[') and value.endswith(']'):
-                  parsed = ast.literal_eval(value.replace('true', 'True').replace('false', 'False'))
-              elif value.isdigit() or (value.startswith('-') and value[1:].isdigit()):
-                  parsed = int(value)
-              else:
-                  parsed = value.strip('"')
-              values[key] = parsed
+      - name: Import pinned base image into ACR
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ARM_SUBSCRIPTION_ID="${ARM_SUBSCRIPTION_ID}"
+          export AZURE_CLIENT_ID="${AZURE_CLIENT_ID}"
+          export AZURE_TENANT_ID="${AZURE_TENANT_ID}"
+          export AZURE_SUBSCRIPTION_ID="${AZURE_SUBSCRIPTION_ID}"
+          export ACR_NAME="${ACR_NAME}"
+          export RESOURCE_GROUP="${RESOURCE_GROUP}"
+          export SOURCE_IMAGE="${SOURCE_IMAGE}"
+          export TARGET_IMAGE="${TARGET_IMAGE}"
+          export FORCE="false"
+          bash scripts/import-base-image.sh
 
-          github_env = os.environ['GITHUB_ENV']
-          with open(github_env, 'a', encoding='utf-8') as fh:
-              fh.write(f"AZURE_SUBSCRIPTION_ID={os.environ.get('AZURE_SUBSCRIPTION_ID', values.get('subscription_id', ''))}\n")
-              fh.write(f"AZURE_TENANT_ID={os.environ.get('AZURE_TENANT_ID', values.get('tenant_id', ''))}\n")
-              fh.write(f"ACR_NAME={os.environ.get('ACR_NAME', values.get('acr_name', ''))}\n")
-              fh.write(f"RESOURCE_GROUP={os.environ.get('RESOURCE_GROUP', values.get('resource_group_name', ''))}\n")
-          PY
+      - name: Confirm imported digest matches pinned value
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(az acr repository show --name "$ACR_NAME" --image "$TARGET_IMAGE" --query digest -o tsv)"
+          echo "Observed digest: $digest"
+          echo "Expected digest: $EXPECTED_DIGEST"
+          if [[ "$digest" != "$EXPECTED_DIGEST" ]]; then
+            echo "Pinned digest mismatch for $ACR_NAME/$TARGET_IMAGE" >&2
+            exit 1
+          fi
 
       - name: Install dependencies
         shell: bash
@@ -73,3 +88,10 @@ jobs:
         shell: bash
         run: |
           python -m pytest -q tests
+
+      - name: Delete imported image after successful validation
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          az acr repository delete --name "$ACR_NAME" --image "$TARGET_IMAGE" --yes || echo "Cleanup skipped: image was already absent."
