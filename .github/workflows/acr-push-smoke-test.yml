@@ -11,10 +11,10 @@ jobs:
       contents: read
       id-token: write
     env:
-      ACR_NAME: eastusprodacr01
+      ACR_NAME: westeuropeprodacr01
       SOURCE_IMAGE: mcr.microsoft.com/azurelinux/base/core:3.0
       TARGET_IMAGE: base/azurelinux:3.0
-      FORCE: "true"
+      FORCE: "false"
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}

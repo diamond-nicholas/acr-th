@@ -17,9 +17,9 @@ resource "azurerm_container_registry" "this" {
   anonymous_pull_enabled = false
 
   public_network_access_enabled = false
-  network_rule_bypass_option = "AzureServices"
-  data_endpoint_enabled      = true
-  export_policy_enabled      = false #images can't be copied out of registory
+  network_rule_bypass_option    = "AzureServices"
+  data_endpoint_enabled         = true
+  export_policy_enabled         = false #images can't be copied out of registory
 
   retention_policy_in_days = var.untagged_manifest_retention_days
 
@@ -112,7 +112,7 @@ resource "azurerm_linux_virtual_machine" "management" {
   depends_on = [
     azuread_application.acr_image_tasks,
     azuread_service_principal.acr_image_tasks,
-    azuread_service_principal_password.acr_image_tasks,
+    azuread_application_federated_identity_credential.acr_image_tasks_github,
     azurerm_role_assignment.acr_image_tasks,
   ]
 

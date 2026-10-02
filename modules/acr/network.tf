@@ -28,7 +28,7 @@ resource "azurerm_network_security_group" "private_endpoints" {
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
-    source_address_prefixes = var.vnet_address_space
+    source_address_prefixes    = var.vnet_address_space
     source_port_range          = "*"
     destination_address_prefix = "*"
     destination_port_range     = "443"
@@ -81,6 +81,54 @@ resource "azurerm_subnet" "management" {
   address_prefixes     = [var.management_subnet_prefix]
 
   default_outbound_access_enabled = false
+}
+
+resource "azurerm_network_security_group" "management" {
+  name                = "nsg-${var.acr_name}-management"
+  resource_group_name = azurerm_resource_group.this.name
+  location            = azurerm_resource_group.this.location
+  tags                = local.common_tags
+
+  security_rule {
+    name                       = "allow-ssh-from-vnet"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_address_prefix      = "VirtualNetwork"
+    source_port_range          = "*"
+    destination_address_prefix = "*"
+    destination_port_range     = "22"
+  }
+
+  security_rule {
+    name                       = "allow-https-egress"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_address_prefix      = "VirtualNetwork"
+    source_port_range          = "*"
+    destination_address_prefix = "Internet"
+    destination_port_range     = "443"
+  }
+
+  security_rule {
+    name                       = "allow-dns-egress"
+    priority                   = 101
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_address_prefix      = "VirtualNetwork"
+    source_port_range          = "*"
+    destination_address_prefix = "Internet"
+    destination_port_range     = "53"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "management" {
+  subnet_id                 = azurerm_subnet.management.id
+  network_security_group_id = azurerm_network_security_group.management.id
 }
 
 resource "azurerm_public_ip" "management_nat" {

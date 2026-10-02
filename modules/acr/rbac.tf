@@ -6,14 +6,6 @@ resource "azurerm_role_assignment" "acr_push" {
   principal_id         = each.value
 }
 
-resource "azurerm_role_assignment" "management_vm_acr_push" {
-  scope                = azurerm_container_registry.this.id
-  role_definition_name = "AcrPush"
-  principal_id         = azurerm_linux_virtual_machine.management.identity[0].principal_id
-
-  depends_on = [azurerm_linux_virtual_machine.management]
-}
-
 resource "azurerm_role_assignment" "acr_pull" {
   for_each = var.acr_pull_principal_ids
 
@@ -53,6 +45,17 @@ resource "azuread_service_principal" "acr_image_tasks" {
 
   client_id = azuread_application.acr_image_tasks[0].client_id
   owners    = []
+}
+
+resource "azuread_application_federated_identity_credential" "acr_image_tasks_github" {
+  count = var.acr_image_tasks_service_principal_enabled ? 1 : 0
+
+  application_id = azuread_application.acr_image_tasks[0].client_id
+  display_name   = "github-${var.environment}-${var.acr_name}-acr-import"
+  description    = "GitHub OIDC credential for the ACR import smoke test."
+  audiences      = ["api://AzureADTokenExchange"]
+  issuer         = "https://token.actions.githubusercontent.com"
+  subject        = var.github_actions_oidc_subject
 }
 
 resource "azurerm_role_assignment" "acr_image_tasks" {

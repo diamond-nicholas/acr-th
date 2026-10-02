@@ -155,6 +155,12 @@ variable "vm_admin_ssh_public_key" {
   sensitive   = true
 }
 
+variable "github_actions_oidc_subject" {
+  description = "GitHub OIDC subject used by the federated identity credential for ACR import actions."
+  type        = string
+  default     = "repo:diamond-nicholas/acr-th:ref:refs/heads/main"
+}
+
 variable "github_runner_enabled" {
   description = "Whether the VM should register a GitHub self-hosted runner on boot."
   type        = bool

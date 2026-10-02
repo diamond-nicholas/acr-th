@@ -21,6 +21,8 @@ The design intentionally separates human admin access from application delivery 
 - Keep `*.tfvars` files out of Git.
 - The service principal or federated identity used for registry operations should be least privilege and rotated on a schedule.
 - Prefer GitHub OIDC and managed identity over long-lived service-principal secrets for both the runner and the VM bootstrap path.
+- The VM system-assigned managed identity is used for Azure CLI login when needed, but the registry should not be granted broad AcrPush access to a general-purpose admin VM.
+- Local Python environments such as `.venv/` are never committed; keep them out of Git while versioning repo validation scripts.
 
 ## Usage
 
@@ -71,6 +73,17 @@ This repo includes a GitHub Actions smoke test workflow that:
 - confirms the imported repository tag is present in the registry
 
 The workflow is designed for a private-network CI model, and it is appropriate when the runner is isolated, patched, and limited to the required registry access path. No static Azure client secret is required; the identity is federated via GitHub and scoped to the ACR.
+
+For local validation, keep the Python test environment local to the repo with:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install pytest
+pytest tests/test_example_tfvars.py -q
+```
+
+The Python validation script in [tests/test_example_tfvars.py](tests/test_example_tfvars.py) is part of the repo and should be committed because it protects the example tfvars contract and catches parse errors before deployment.
 
 ## Working assumptions
 

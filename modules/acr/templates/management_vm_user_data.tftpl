@@ -18,7 +18,8 @@ apt-get update
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 systemctl enable --now docker
 usermod -aG docker ${vm_admin_username}
-chmod 666 /var/run/docker.sock
+chown root:docker /var/run/docker.sock
+chmod 660 /var/run/docker.sock
 
 # Authenticate Azure CLI using the VM's system-assigned managed identity.
 # This avoids long-lived secrets and prevents them from appearing in cloud-init logs.
@@ -38,6 +39,23 @@ if [ "${github_runner_enabled}" = "true" ] && [ -n "${github_runner_url}" ] && [
     curl -fsSL -o actions-runner-linux-x64.tar.gz -L https://github.com/actions/runner/releases/download/v2.337.0/actions-runner-linux-x64-2.337.0.tar.gz
     tar xzf actions-runner-linux-x64.tar.gz
     ./config.sh --url '${github_runner_url}' --token '${github_runner_token}' --name '${github_runner_name}' --work _work --labels '${github_runner_labels}' --unattended
-    nohup ./run.sh > /tmp/actions-runner.log 2>&1 &
+    cat > /etc/systemd/system/actions-runner.service <<SERVICE
+[Unit]
+Description=GitHub Actions Runner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=${vm_admin_username}
+WorkingDirectory=$RUNNER_HOME
+ExecStart=$RUNNER_HOME/run.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+    systemctl daemon-reload
+    systemctl enable --now actions-runner.service
   "
 fi

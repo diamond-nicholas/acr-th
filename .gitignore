@@ -2,6 +2,10 @@
 **/.terragrunt-cache/
 **/.terraform/
 **/.terraform.lock.hcl
+**/.venv/
+.venv/
+**/__pycache__/
+**/.pytest_cache/
 **/*.tfstate
 **/*.tfstate.*
 **/*.tfplan

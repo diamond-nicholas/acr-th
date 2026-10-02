@@ -24,7 +24,9 @@ for private registry access.
 * Terraform Remote state is configured to use Entra authentication rather than storage keys.
 * GitHub Actions authenticates to Azure through GitHub OIDC (`azure/login@v2`) instead of a long-lived client secret.
 * The VM bootstraps with the system-assigned managed identity (`az login --identity`) and does not expose service-principal credentials in cloud-init logs.
+* The VM should not hold broad AcrPush rights for the registry when GitHub OIDC is the pipeline authentication path; least-privilege access should be used for all workloads.
 * The self-hosted runner and pipeline are designed to run inside the private network, while only short-lived identity tokens or managed-identity access are used instead of static client secrets.
+* Local validation environments such as `.venv/` are intentionally excluded from source control; only the repo validation scripts are versioned.
 
 
 
@@ -70,6 +72,7 @@ for private registry access.
 * The runner bootstrap is optional and controlled by Terraform variables rather than being hardcoded as a live deployment requirement.
 * The environment is designed for private-network image delivery: the runner runs inside the VNet and uses Azure OIDC plus the VM's managed identity to access the registry over the private endpoint path.
 * The smoke test invokes the ACR import flow (`az acr import`) instead of a raw Docker pull-and-push, which matches the intended private-registry ingestion pattern.
+* A repo-level validation script checks that the example tfvars file remains parseable and region-consistent; this script is versioned, while the local `.venv` folder remains untracked.
 * The successful workflow validates that the ACR private endpoint and access path are working for the supported import and repository validation flow.
 * The design is aligned with a private-network CI pipeline model and is hardened with GitHub OIDC and managed identity instead of long-lived client secrets.
 * The runner is treated as a dedicated build host for registry operations rather than as a general-purpose admin workstation.
