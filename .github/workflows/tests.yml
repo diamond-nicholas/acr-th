@@ -9,13 +9,14 @@ on:
 jobs:
   pytest:
     name: Run repository tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
+    environment: prod
     permissions:
       contents: read
       id-token: write
     env:
-      RUN_LIVE_ACR_TESTS: "false"
-      RUN_PRIVATE_ACR_TESTS: "false"
+      RUN_LIVE_ACR_TESTS: "true"
+      RUN_PRIVATE_ACR_TESTS: "true"
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
