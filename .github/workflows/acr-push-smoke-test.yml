@@ -12,7 +12,7 @@ jobs:
       contents: read
       id-token: write
     env:
-      ACR_NAME: westeuropeprodacr01
+      ACR_NAME: eastusprodacr01
       SOURCE_IMAGE: mcr.microsoft.com/azurelinux/base/core:3.0
       TARGET_IMAGE: base/azurelinux:3.0
       EXPECTED_DIGEST: sha256:1324a2cf7ed34e5f48a1022816b205782b86c7305651658e611dcd3d30756751

@@ -11,7 +11,7 @@ import requests
     reason="Private registry checks run only when RUN_PRIVATE_ACR_TESTS=true",
 )
 def test_private_acr_dns_and_http():
-    acr_name = "westeuropeprodacr01"
+    acr_name = "eastusprodacr01"
     fqdn = f"{acr_name}.azurecr.io"
     addrs = socket.getaddrinfo(fqdn, 443, proto=socket.IPPROTO_TCP)
     ips = sorted({item[4][0] for item in addrs if item[4]})
