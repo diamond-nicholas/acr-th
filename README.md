@@ -2,6 +2,8 @@
 
 ![ACR architecture diagram](acr-th-architecture-diagram.png)
 
+Part 2 CVSS Task Design: https://canva.link/k9gbv3ziuo92xwd
+
 This repository contains a Terragrunt + Terraform deployment for a private Azure Container Registry with a management VM and Azure Bastion. The current live configuration is a private ACR deployment with a management path separated from the registry network, and it supports a self-hosted GitHub runner running inside the VNet for private registry access.
 
 The design intentionally separates human admin access from application delivery workflows. Azure Bastion is used for operator access to the private management VM, while the runner and pipeline operate within the private network and authenticate to Azure using GitHub OIDC and the VM's managed identity rather than long-lived service-principal secrets.
