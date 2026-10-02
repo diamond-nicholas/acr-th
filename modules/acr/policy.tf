@@ -1,5 +1,3 @@
-# Azure enforces these on every registry in the resource group,
-# including anything created outside Terraform.
 locals {
   registry_policies = {
     deny-public-network = "0fdf0491-d080-4575-b627-ad0e843cba0f"

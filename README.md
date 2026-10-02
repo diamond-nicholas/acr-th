@@ -1,22 +1,33 @@
 # azure-acr
 
-Terragrunt setup for a production-oriented Azure Container Registry. Premium ACR in West Europe with a North Europe geo-replica. Public access is disabled, with a VNet, private endpoint, private DNS, Log Analytics, deletion protection, and an NSG allowing HTTPS from the VNet.
+This repository contains a Terragrunt + Terraform deployment for a private Azure Container Registry with a management VM and Azure Bastion. The current live configuration is a private ACR deployment with a management path separated from the registry network, and it supports a self-hosted GitHub runner running inside the VNet for private registry access.
 
-A private management VM is accessed through Azure Bastion. Bastion is for **human administration only**; CI/CD will use a dedicated private runner with connectivity to the ACR private endpoint.
+The design intentionally separates human admin access from application delivery workflows. Azure Bastion is used for operator access to the private management VM, while the runner and pipeline operate within the private network and authenticate to Azure using GitHub repository secrets.
 
-Azure Policy on the resource group also denies public access, admin user, anonymous pull, and exports being enabled.
+## Current architecture
 
-The state storage account is created separately and is not managed here.
+- Private-only ACR with `public_network_access_enabled = false`
+- Private endpoint and private DNS zone for `azurecr.io`
+- Management subnet with a Linux VM behind NAT and no public IP
+- Azure Bastion for human administrative access
+- Azure Policy denying public access, admin user use, anonymous pull, and export
+- Terraform remote state stored in a separate Azure Storage account using Entra auth
+- Deletion protection via Terraform `prevent_destroy` and an Azure `CanNotDelete` lock
+- Optional self-hosted runner installation for private CI jobs
+
+## Security notes
+
+- Secrets must be kept out of source control. Use GitHub repository secrets or another secure secret store for pipeline credentials.
+- Keep `*.tfvars` files out of Git.
+- The service principal used for registry operations should be least privilege and rotated on a schedule.
+- Prefer OIDC or managed identity for future pipeline hardening instead of long-lived service-principal secrets.
 
 ## Usage
 
 ```bash
 cp example.tfvars prod.tfvars
-```
+# populate the file with your environment values
 
-Fill in the tenant, subscription, state storage, registry and network values.
-
-```bash
 az login --tenant <tenant-id>
 
 cd live/prod/westeurope/acr
@@ -27,56 +38,57 @@ TG_VAR_FILE=../../../../prod.tfvars terragrunt apply
 
 `TG_VAR_FILE` is used because Terragrunt also needs the tfvars values when configuring the remote backend.
 
-All environment-specific values are in the tfvars file; nothing environment-specific is hardcoded in the module.
-
-## Network
+## Network access model
 
 ```text
-Human:  Administrator → Bastion → Private VM
-
-CI/CD:  Private CI Runner → Private Endpoint → ACR
+Human:  Administrator → Bastion → Management VM → ACR private endpoint
+CI:     GitHub self-hosted runner → private network → ACR private endpoint
+Registry:  Private network only; no public registry endpoints
 ```
 
-The CI runner is separate from Bastion and will authenticate using Entra/OIDC rather than ACR admin credentials.
+## Private CI / image push flow
 
-## Base Image
+The repository includes a GitHub Actions workflow that runs on a self-hosted runner inside the private network and authenticates to Azure using GitHub repository secrets.
 
-```bash
-./scripts/import-base-image.sh
-```
+This pattern is intentionally aligned with a private ACR deployment model:
 
-Uses `az acr import`, so Azure performs the import server-side.
+- the runner is placed inside the same VNet as the registry path
+- ACR is reachable only through the private endpoint
+- the runner authenticates with the least-privilege Azure service principal
+- the workflow pulls a public image, tags it for the private registry, and pushes it to ACR
+- a smoke test validates that the registry accepts the pushed image and exposes it in the repository
 
-## New Environment
+This is a proven private-network CI pattern for a private registry workload and matches the successful nginx push flow that was validated in this environment.
 
-Copy `prod.tfvars` to `dev.tfvars`, change the values, and create:
+## Pipeline behavior
 
-```text
-live/dev/northeurope/acr/terragrunt.hcl
-```
+This repo includes a GitHub Actions smoke test workflow that:
 
-```hcl
-include "root" {
-  path = find_in_parent_folders("root.hcl")
-}
+- authenticates to Azure with service-principal secrets from GitHub
+- logs into the private ACR
+- pulls `nginx` from Docker Hub
+- tags it for the ACR repository
+- pushes it to the registry
+- confirms the image is available in the target ACR repository
 
-terraform {
-  source = "../../../../modules/acr"
-}
-```
+The workflow is designed for a private-network CI model, and it is appropriate when the runner is isolated, patched, and limited to the required registry access path. Secrets remain in GitHub repository secrets rather than in the repository itself.
 
-Then run Terragrunt with the appropriate `TG_VAR_FILE`.
+## Working assumptions
+
+This repo is a sound private-registry baseline and supports a real private CI workflow. It is not yet a fully hardened production CI/CD design, but it is aligned with a legitimate self-hosted private-runner model for Azure Container Registry workloads and has been validated with a successful image push to the private registry.
+
+## Areas to improve
+
+- Replace static Azure client secrets with GitHub OIDC or managed identity where possible.
+- Add approval gates and branch protection for registry image pushes.
+- Add image scanning and policy enforcement before pushing to production tags.
+- Consider tag immutability, retention policies, and image signing for provenance.
+- Add monitoring and alerting around ACR push activity, registry events, and runner access.
+- Review whether the custom ACR role for image tasks is sufficient for all required task operations.
+- Use a dedicated CI workflow identity instead of a broader application registration where possible.
+- Add pre-commit checks, linting, and policy validation for Terraform.
+- Consider separate production and non-production repositories or naming conventions to reduce accidental promotion risk.
 
 ## Destroy
 
-Deletion is protected by Terraform `prevent_destroy` and an Azure
-`CanNotDelete` lock. Both must be removed before destruction.
-
-## Next Steps
-
-* Private CI runner with OIDC
-* Approval-gated deployments
-* Defender for Containers
-* Image signing with Notation
-* Checkov/TFLint
-* CMK where required
+Deletion is protected by Terraform `prevent_destroy` and an Azure `CanNotDelete` lock. Both must be removed before destruction.

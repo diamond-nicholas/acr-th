@@ -11,15 +11,12 @@ resource "azurerm_container_registry" "this" {
 
   sku = "Premium"
 
-  # Can only be set at creation time.
   zone_redundancy_enabled = true
 
   admin_enabled          = false
   anonymous_pull_enabled = false
 
   public_network_access_enabled = false
-  # Lets trusted Azure services through while public access is off,
-  # so az acr import (run server-side by Azure) works from anywhere.
   network_rule_bypass_option = "AzureServices"
   data_endpoint_enabled      = true
   export_policy_enabled      = false #images can't be copied out of registory
@@ -37,21 +34,20 @@ resource "azurerm_container_registry" "this" {
     }
   }
 
-  # lifecycle {
-  #   prevent_destroy = true
-  # }
+  lifecycle {
+    prevent_destroy = true
+  }
 
   tags = local.common_tags
 }
 
-# resource "azurerm_management_lock" "acr" {
-#   name       = "lock-${var.acr_name}"
-#   scope      = azurerm_container_registry.this.id
-#   lock_level = "CanNotDelete"
-#   notes      = "Protects the production registry from accidental deletion."
-# }
+resource "azurerm_management_lock" "acr" {
+  name       = "lock-${var.acr_name}"
+  scope      = azurerm_container_registry.this.id
+  lock_level = "CanNotDelete"
+  notes      = "Protects the production registry from accidental deletion."
+}
 
-#------
 
 resource "azurerm_bastion_host" "this" {
   name                = "bas-${var.acr_name}"

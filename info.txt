@@ -1,52 +1,58 @@
-# Take Home SUmmary
+# Take Home Summary
 
-
-A Premium Azure Container Registry in West Europe, deployed with Terraform
+This repo deploys a Premium Azure Container Registry and supporting network components in West Europe, deployed with Terraform
 and Terragrunt. It is private-only, zone-redundant, geo-replicated, audited
 and protected against deletion.
 
 Human administration and CI/CD are separated: Azure Bastion provides
-controlled access to private management resources, while CI/CD will run from
-a dedicated private runner with network access to the registry.
+controlled access to private management resources, the environment is capable of hosting a self-hosted GitHub runner inside the VNet 
+for private registry access. 
+
+
+
 
 1. SECURITY
 
----
-
-* Public network access disabled; ACR is accessed through a Private Endpoint
+* Public network access disabled on the registry; ACR is accessed through a Private Endpoint
   and private DNS.
-* Admin account and anonymous pulls disabled; access uses Entra ID and RBAC.
+* ACR admin user is disabled and anonymous pull is blocked; access uses Entra ID and RBAC.
+* Azure Policy assignments deny public access, admin-user use, anonymous pull, and export operations.
 * AcrPush/AcrPull granted only to explicitly configured principals.
 * Export policy disabled.
 * AzureServices bypass supports server-side Azure operations such as
   `az acr import`.
-* Terraform state uses Entra ID authentication rather than storage keys.
+* Terraform Remote state is configured to use Entra authentication rather than storage keys.
+* The self-hosted runner and pipeline are designed to run inside the private network, while pipeline secrets stay in GitHub repository secrets instead of source control.
+
+
 
 2. RESILIENCE
 
----
-
-* Zone redundancy enabled in West Europe and the North Europe replica.
+* Zone redundancy enabled in West Europe and the North Europe replica for ACR.
 * Geo-replication provides regional resilience and additional pull capacity.
 * Deletion protected by both Terraform `prevent_destroy` and an Azure
   `CanNotDelete` management lock.
+* The design includes a private management VM behind NAT and a dedicated Bastion path for administrative access.
+* The environment supports ACR import and push workflows from a private runner inside the VNet.
+
+
 
 3. NETWORK / ACCESS
 
----
-
 * Dedicated subnet for the ACR Private Endpoint.
-* Private management VM with no public IP.
-* Azure Bastion provides human SSH/RDP access to the private VM.
+* Private management VM with no public IP and can only be reached through Bastion.
+* Azure Bastion provides human SSH access to the private VM.
 * Bastion is **not used for CI/CD**.
+* The network is designed to keep registry traffic off the public internet.
+* The self-hosted GitHub runner is supported through VM bootstrap.
 * CI/CD will use a dedicated private runner with connectivity to the ACR
   Private Endpoint.
 
+
+
 4. INFRASTRUCTURE AS CODE
 
----
-
-* Reusable Terraform module with Terragrunt environment units.
+* Reusable Terraform module with Terragrunt environment.
 * Remote Azure Storage state with locking.
 * Environment-specific values come from `prod.tfvars`; no environment
   CIDRs or names are hardcoded in resources.
@@ -54,23 +60,27 @@ a dedicated private runner with network access to the registry.
   is committed.
 * Input validation and consistent resource tagging are implemented.
 
-5. BASE IMAGE IMPORT
-
----
-
-`scripts/import-base-image.sh` uses `az acr import`, so Azure performs the
-image import server-side. The image does not pass through the operator's
-machine or CI runner.
 
 
----
-AREAS TO COVER IF MORE TIME
+5. PRIVATE CI / IMAGE PUSH FLOW
 
-* Dedicated private CI/CD runner with OIDC authentication.
-* PR-based Terraform plan and approval-gated apply.
-* Defender for Containers image scanning.
-* Image signing with Notation and signature verification.
+* The repository includes a GitHub workflow that runs from a self-hosted runner.
+* The runner bootstrap is optional and controlled by Terraform variables rather than being hardcoded as a live deployment requirement.
+* The environment is designed for private-network image delivery: the runner runs inside the VNet and pushes an image to the registry over the private endpoint path.
+* The successful workflow validates that the ACR private endpoint and access path are working for standard image push operations.
+* The design is aligned with a private-network CI pipeline model, but it should be hardened with OIDC, short-lived credentials, and stricter runner isolation.
+* The runner is treated as a dedicated build host for registry operations rather than as a general-purpose admin workstation.
+
+
+6. AREAS TO COVER IF MORE TIME
+
+* Prefer GitHub OIDC over a long-lived Azure client secret where possible.
+* Add image scanning, policy checks, signing, and approvals before production pushes.
+* Rotate service principal and runner credentials on a schedule.
+* Keep the runner isolated, patched, and limited to the required network paths.
+* Add more alerting, audit logging, and operational monitoring around registry activity and runner access.
+* Image scanning with tools like defender, trivy, snyk.
+* Enforce github change management with branch protection, approval gates and CI only tf plan and apply
 * Checkov/TFLint security and quality checks.
 * CMK encryption if required by compliance.
-
 

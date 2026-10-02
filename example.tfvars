@@ -28,3 +28,15 @@ log_retention_days               = 30
 
 acr_push_principal_ids = []
 acr_pull_principal_ids = []
+acr_image_tasks_service_principal_enabled = true
+acr_image_tasks_service_principal_name = "sp-eastusprodacr01-image-tasks"
+
+github_runner_enabled = true
+github_runner_url = "https://github.com/<organization>/<repository>"
+github_runner_token = "<replace-with-github-runner-registration-token>"
+github_runner_name = "vm-eastusprodacr01-management"
+github_runner_labels = "self-hosted,linux,x64"
+
+vm_admin_username = "adminxx"
+vm_size = "Standard_DC1ds_v3"
+vm_admin_ssh_public_key =
