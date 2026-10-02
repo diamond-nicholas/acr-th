@@ -50,7 +50,8 @@ resource "azuread_service_principal" "acr_image_tasks" {
 resource "azuread_application_federated_identity_credential" "acr_image_tasks_github" {
   count = var.acr_image_tasks_service_principal_enabled ? 1 : 0
 
-  application_id = azuread_application.acr_image_tasks[0].client_id
+  # The AzureAD provider expects the application resource ID, not the client ID.
+  application_id = azuread_application.acr_image_tasks[0].id
   display_name   = "github-${var.environment}-${var.acr_name}-acr-import"
   description    = "GitHub OIDC credential for the ACR import smoke test."
   audiences      = ["api://AzureADTokenExchange"]

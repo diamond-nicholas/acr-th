@@ -30,7 +30,8 @@ The design intentionally separates human admin access from application delivery 
 cp example.tfvars prod.tfvars
 # populate the file with your environment values
 
-az login --tenant <tenant-id>
+# authenticate to Azure with the identity that will run Terraform / OIDC
+az login
 
 cd live/prod/westeurope/acr
 
@@ -50,15 +51,15 @@ Registry:  Private network only; no public registry endpoints
 
 ## Private CI / ACR import flow
 
-The repository includes a GitHub Actions workflow that runs on a self-hosted runner inside the private network and authenticates to Azure using GitHub OIDC, not a client secret.
+The repository includes a GitHub Actions workflow that runs on a self-hosted runner inside the private network and authenticates to Azure with GitHub OIDC, not a client secret.
 
 This pattern is intentionally aligned with a private ACR deployment model:
 
 - the runner is placed inside the same VNet as the registry path
 - ACR is reachable only through the private endpoint
 - the workflow authenticates with the least-privilege Azure identity through `azure/login@v2`
-- the smoke test runs the repository import script so the registry performs an `az acr import` of the official Azure Linux base image
-- the workflow validates that the registry repository contains the imported tag and that the private network path works as expected
+- Terraform creates the registry and then invokes the ACR `importImage` action with the pinned digest so the registry starts from a known-good base image
+- the workflow validates the imported digest and checks that the private network path behaves as expected
 
 This is a secure private-network CI pattern for a private registry workload and matches the import-first workflow intended for this environment.
 

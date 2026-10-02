@@ -32,6 +32,7 @@ acr_push_principal_ids                    = []
 acr_pull_principal_ids                    = []
 acr_image_tasks_service_principal_enabled = true
 acr_image_tasks_service_principal_name    = "sp-westeuropeprodacr01-image-tasks"
+base_image_digest                        = "sha256:1324a2cf7ed34e5f48a1022816b205782b86c7305651658e611dcd3d30756751"
 
 github_actions_oidc_subject = "repo:<organization>/<repository>:environment:prod"
 github_runner_enabled       = true

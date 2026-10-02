@@ -41,13 +41,32 @@ resource "azurerm_container_registry" "this" {
   tags = local.common_tags
 }
 
+resource "azapi_resource_action" "import_base_image" {
+  type        = "Microsoft.ContainerRegistry/registries@2023-07-01"
+  resource_id = azurerm_container_registry.this.id
+  action      = "importImage"
+  method      = "POST"
+
+  body = {
+    source = {
+      registryUri = "mcr.microsoft.com"
+      sourceImage = "azurelinux/base/core@${var.base_image_digest}"
+    }
+    targetTags = ["base/azurelinux:3.0"]
+    options = {
+      force = false
+    }
+  }
+
+  depends_on = [azurerm_private_endpoint.acr]
+}
+
 resource "azurerm_management_lock" "acr" {
   name       = "lock-${var.acr_name}"
   scope      = azurerm_container_registry.this.id
   lock_level = "CanNotDelete"
   notes      = "Protects the production registry from accidental deletion."
 }
-
 
 resource "azurerm_bastion_host" "this" {
   name                = "bas-${var.acr_name}"

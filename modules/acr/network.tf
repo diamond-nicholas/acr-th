@@ -126,8 +126,20 @@ resource "azurerm_network_security_group" "management" {
   }
 
   security_rule {
+    name                       = "allow-http-egress"
+    priority                   = 101
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_address_prefix      = "VirtualNetwork"
+    source_port_range          = "*"
+    destination_address_prefix = "Internet"
+    destination_port_range     = "80"
+  }
+
+  security_rule {
     name                       = "allow-https-egress"
-    priority                   = 100
+    priority                   = 110
     direction                  = "Outbound"
     access                     = "Allow"
     protocol                   = "Tcp"
