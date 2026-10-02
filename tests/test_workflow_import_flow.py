@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SMOKE_WORKFLOW = ROOT / ".github" / "workflows" / "acr-push-smoke-test.yml"
+RUN_TESTS_WORKFLOW = ROOT / ".github" / "workflows" / "run-tests.yml"
 
 
 def test_workflow_imports_base_image_before_validation():
@@ -19,10 +20,12 @@ def test_workflow_imports_base_image_before_validation():
 
 
 def test_workflow_uses_self_hosted_runner_and_oidc():
-    text = SMOKE_WORKFLOW.read_text()
+    text = RUN_TESTS_WORKFLOW.read_text()
 
+    assert "name: Run tests" in text
     assert "runs-on: [self-hosted, linux, x64]" in text
     assert "azure/login@v2" in text
     assert "AZURE_CLIENT_ID" in text
     assert "AZURE_TENANT_ID" in text
     assert "AZURE_SUBSCRIPTION_ID" in text
+    assert "python -m pytest -q tests" in text
