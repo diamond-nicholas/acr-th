@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euxo pipefail
+set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 # Install Azure CLI
@@ -20,16 +20,11 @@ systemctl enable --now docker
 usermod -aG docker ${vm_admin_username}
 chmod 666 /var/run/docker.sock
 
-# Authenticate Azure CLI with the Terraform-created service principal
-if [ -n "${sp_app_id}" ] && [ -n "${sp_client_secret}" ] && [ -n "${tenant_id}" ]; then
-  az login --service-principal \
-    --username "${sp_app_id}" \
-    --password "${sp_client_secret}" \
-    --tenant "${tenant_id}" >/dev/null
-
-  az account set --subscription "${subscription_id}"
-  az acr login --name "${acr_name}"
-fi
+# Authenticate Azure CLI using the VM's system-assigned managed identity.
+# This avoids long-lived secrets and prevents them from appearing in cloud-init logs.
+az login --identity >/dev/null
+az account set --subscription "${subscription_id}"
+az acr login --name "${acr_name}"
 
 # Optionally install and register a GitHub self-hosted runner
 if [ "${github_runner_enabled}" = "true" ] && [ -n "${github_runner_url}" ] && [ -n "${github_runner_token}" ]; then
@@ -38,7 +33,7 @@ if [ "${github_runner_enabled}" = "true" ] && [ -n "${github_runner_url}" ] && [
   chown -R ${vm_admin_username}:${vm_admin_username} "$RUNNER_HOME"
 
   sudo -u ${vm_admin_username} bash -lc "
-    set -euxo pipefail
+    set -euo pipefail
     cd \"$RUNNER_HOME\"
     curl -fsSL -o actions-runner-linux-x64.tar.gz -L https://github.com/actions/runner/releases/download/v2.337.0/actions-runner-linux-x64-2.337.0.tar.gz
     tar xzf actions-runner-linux-x64.tar.gz

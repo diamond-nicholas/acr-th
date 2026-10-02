@@ -6,6 +6,14 @@ resource "azurerm_role_assignment" "acr_push" {
   principal_id         = each.value
 }
 
+resource "azurerm_role_assignment" "management_vm_acr_push" {
+  scope                = azurerm_container_registry.this.id
+  role_definition_name = "AcrPush"
+  principal_id         = azurerm_linux_virtual_machine.management.identity[0].principal_id
+
+  depends_on = [azurerm_linux_virtual_machine.management]
+}
+
 resource "azurerm_role_assignment" "acr_pull" {
   for_each = var.acr_pull_principal_ids
 
@@ -45,13 +53,6 @@ resource "azuread_service_principal" "acr_image_tasks" {
 
   client_id = azuread_application.acr_image_tasks[0].client_id
   owners    = []
-}
-
-resource "azuread_service_principal_password" "acr_image_tasks" {
-  count = var.acr_image_tasks_service_principal_enabled ? 1 : 0
-
-  service_principal_id = azuread_service_principal.acr_image_tasks[0].id
-  end_date            = timeadd(timestamp(), "8760h")
 }
 
 resource "azurerm_role_assignment" "acr_image_tasks" {

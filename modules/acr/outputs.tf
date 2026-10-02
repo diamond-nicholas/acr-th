@@ -57,8 +57,3 @@ output "acr_image_task_service_principal_object_id" {
   value       = var.acr_image_tasks_service_principal_enabled ? azuread_service_principal.acr_image_tasks[0].object_id : null
 }
 
-output "acr_image_task_service_principal_client_secret" {
-  description = "Client secret for the least-privilege ACR image task service principal."
-  value       = var.acr_image_tasks_service_principal_enabled ? azuread_service_principal_password.acr_image_tasks[0].value : null
-  sensitive   = true
-}

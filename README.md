@@ -2,7 +2,7 @@
 
 This repository contains a Terragrunt + Terraform deployment for a private Azure Container Registry with a management VM and Azure Bastion. The current live configuration is a private ACR deployment with a management path separated from the registry network, and it supports a self-hosted GitHub runner running inside the VNet for private registry access.
 
-The design intentionally separates human admin access from application delivery workflows. Azure Bastion is used for operator access to the private management VM, while the runner and pipeline operate within the private network and authenticate to Azure using GitHub repository secrets.
+The design intentionally separates human admin access from application delivery workflows. Azure Bastion is used for operator access to the private management VM, while the runner and pipeline operate within the private network and authenticate to Azure using GitHub OIDC and the VM's managed identity rather than long-lived service-principal secrets.
 
 ## Current architecture
 
@@ -17,10 +17,10 @@ The design intentionally separates human admin access from application delivery 
 
 ## Security notes
 
-- Secrets must be kept out of source control. Use GitHub repository secrets or another secure secret store for pipeline credentials.
+- Secrets must be kept out of source control. Use GitHub OIDC, managed identity, or another secure secret store for pipeline credentials.
 - Keep `*.tfvars` files out of Git.
-- The service principal used for registry operations should be least privilege and rotated on a schedule.
-- Prefer OIDC or managed identity for future pipeline hardening instead of long-lived service-principal secrets.
+- The service principal or federated identity used for registry operations should be least privilege and rotated on a schedule.
+- Prefer GitHub OIDC and managed identity over long-lived service-principal secrets for both the runner and the VM bootstrap path.
 
 ## Usage
 
@@ -46,32 +46,31 @@ CI:     GitHub self-hosted runner → private network → ACR private endpoint
 Registry:  Private network only; no public registry endpoints
 ```
 
-## Private CI / image push flow
+## Private CI / ACR import flow
 
-The repository includes a GitHub Actions workflow that runs on a self-hosted runner inside the private network and authenticates to Azure using GitHub repository secrets.
+The repository includes a GitHub Actions workflow that runs on a self-hosted runner inside the private network and authenticates to Azure using GitHub OIDC, not a client secret.
 
 This pattern is intentionally aligned with a private ACR deployment model:
 
 - the runner is placed inside the same VNet as the registry path
 - ACR is reachable only through the private endpoint
-- the runner authenticates with the least-privilege Azure service principal
-- the workflow pulls a public image, tags it for the private registry, and pushes it to ACR
-- a smoke test validates that the registry accepts the pushed image and exposes it in the repository
+- the workflow authenticates with the least-privilege Azure identity through `azure/login@v2`
+- the smoke test runs the repository import script so the registry performs an `az acr import` of the official Azure Linux base image
+- the workflow validates that the registry repository contains the imported tag and that the private network path works as expected
 
-This is a proven private-network CI pattern for a private registry workload and matches the successful nginx push flow that was validated in this environment.
+This is a secure private-network CI pattern for a private registry workload and matches the import-first workflow intended for this environment.
 
 ## Pipeline behavior
 
 This repo includes a GitHub Actions smoke test workflow that:
 
-- authenticates to Azure with service-principal secrets from GitHub
-- logs into the private ACR
-- pulls `nginx` from Docker Hub
-- tags it for the ACR repository
-- pushes it to the registry
-- confirms the image is available in the target ACR repository
+- authenticates to Azure with GitHub OIDC and no long-lived client secret
+- checks out the repo
+- runs [scripts/import-base-image.sh](scripts/import-base-image.sh)
+- uses `az acr import` to bring an official base image into the private ACR
+- confirms the imported repository tag is present in the registry
 
-The workflow is designed for a private-network CI model, and it is appropriate when the runner is isolated, patched, and limited to the required registry access path. Secrets remain in GitHub repository secrets rather than in the repository itself.
+The workflow is designed for a private-network CI model, and it is appropriate when the runner is isolated, patched, and limited to the required registry access path. No static Azure client secret is required; the identity is federated via GitHub and scoped to the ACR.
 
 ## Working assumptions
 
@@ -79,13 +78,13 @@ This repo is a sound private-registry baseline and supports a real private CI wo
 
 ## Areas to improve
 
-- Replace static Azure client secrets with GitHub OIDC or managed identity where possible.
+- Continue to use GitHub OIDC and managed identity instead of static Azure client secrets.
 - Add approval gates and branch protection for registry image pushes.
 - Add image scanning and policy enforcement before pushing to production tags.
 - Consider tag immutability, retention policies, and image signing for provenance.
 - Add monitoring and alerting around ACR push activity, registry events, and runner access.
 - Review whether the custom ACR role for image tasks is sufficient for all required task operations.
-- Use a dedicated CI workflow identity instead of a broader application registration where possible.
+- Use a dedicated GitHub OIDC app registration or workload identity with minimal scope instead of a broader application registration where possible.
 - Add pre-commit checks, linting, and policy validation for Terraform.
 - Consider separate production and non-production repositories or naming conventions to reduce accidental promotion risk.
 

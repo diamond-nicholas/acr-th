@@ -5,51 +5,42 @@ on:
 
 jobs:
   acr-push:
-    name: Verify ACR push from self-hosted runner
+    name: Verify ACR import flow from self-hosted runner
     runs-on: [self-hosted, linux, x64]
     permissions:
       contents: read
+      id-token: write
     env:
       ACR_NAME: eastusprodacr01
-      ACR_LOGIN_SERVER: eastusprodacr01.azurecr.io
-      IMAGE_NAME: smoke-test
-      IMAGE_TAG: ${{ github.run_id }}
+      SOURCE_IMAGE: mcr.microsoft.com/azurelinux/base/core:3.0
+      TARGET_IMAGE: base/azurelinux:3.0
+      FORCE: "true"
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
 
     steps:
-      - name: Azure login
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Azure login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run ACR import script
         shell: bash
         run: |
           set -euo pipefail
-          az login --service-principal \
-            --username "$AZURE_CLIENT_ID" \
-            --password "$AZURE_CLIENT_SECRET" \
-            --tenant "$AZURE_TENANT_ID"
-          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+          bash ./scripts/import-base-image.sh
 
-      - name: Login to ACR
-        shell: bash
-        run: |
-          set -euo pipefail
-          az acr login --name "$ACR_NAME"
-
-      - name: Push a test image to ACR
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker pull nginx:latest
-          docker tag nginx:latest "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
-          docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
-          echo "Pushed $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
-
-      - name: Confirm repository tag exists
+      - name: Confirm imported tag exists
         shell: bash
         run: |
           set -euo pipefail
           az acr repository show-tags \
             --name "$ACR_NAME" \
-            --repository "$IMAGE_NAME" \
-            --top 5
+            --repository "base/azurelinux" \
+            --top 10

@@ -95,12 +95,9 @@ resource "azurerm_linux_virtual_machine" "management" {
   }
 
   custom_data = base64encode(templatefile("${path.module}/templates/management_vm_user_data.tftpl", {
-    tenant_id             = var.tenant_id
     subscription_id       = var.subscription_id
     acr_name              = var.acr_name
     vm_admin_username     = var.vm_admin_username
-    sp_app_id             = var.acr_image_tasks_service_principal_enabled ? azuread_application.acr_image_tasks[0].client_id : ""
-    sp_client_secret      = var.acr_image_tasks_service_principal_enabled ? azuread_service_principal_password.acr_image_tasks[0].value : ""
     github_runner_enabled = var.github_runner_enabled
     github_runner_url     = var.github_runner_url
     github_runner_token   = var.github_runner_token

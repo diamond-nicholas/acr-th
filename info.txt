@@ -22,7 +22,9 @@ for private registry access.
 * AzureServices bypass supports server-side Azure operations such as
   `az acr import`.
 * Terraform Remote state is configured to use Entra authentication rather than storage keys.
-* The self-hosted runner and pipeline are designed to run inside the private network, while pipeline secrets stay in GitHub repository secrets instead of source control.
+* GitHub Actions authenticates to Azure through GitHub OIDC (`azure/login@v2`) instead of a long-lived client secret.
+* The VM bootstraps with the system-assigned managed identity (`az login --identity`) and does not expose service-principal credentials in cloud-init logs.
+* The self-hosted runner and pipeline are designed to run inside the private network, while only short-lived identity tokens or managed-identity access are used instead of static client secrets.
 
 
 
@@ -66,17 +68,18 @@ for private registry access.
 
 * The repository includes a GitHub workflow that runs from a self-hosted runner.
 * The runner bootstrap is optional and controlled by Terraform variables rather than being hardcoded as a live deployment requirement.
-* The environment is designed for private-network image delivery: the runner runs inside the VNet and pushes an image to the registry over the private endpoint path.
-* The successful workflow validates that the ACR private endpoint and access path are working for standard image push operations.
-* The design is aligned with a private-network CI pipeline model, but it should be hardened with OIDC, short-lived credentials, and stricter runner isolation.
+* The environment is designed for private-network image delivery: the runner runs inside the VNet and uses Azure OIDC plus the VM's managed identity to access the registry over the private endpoint path.
+* The smoke test invokes the ACR import flow (`az acr import`) instead of a raw Docker pull-and-push, which matches the intended private-registry ingestion pattern.
+* The successful workflow validates that the ACR private endpoint and access path are working for the supported import and repository validation flow.
+* The design is aligned with a private-network CI pipeline model and is hardened with GitHub OIDC and managed identity instead of long-lived client secrets.
 * The runner is treated as a dedicated build host for registry operations rather than as a general-purpose admin workstation.
 
 
 6. AREAS TO COVER IF MORE TIME
 
-* Prefer GitHub OIDC over a long-lived Azure client secret where possible.
+* Continue with GitHub OIDC and managed identity over long-lived Azure credentials.
 * Add image scanning, policy checks, signing, and approvals before production pushes.
-* Rotate service principal and runner credentials on a schedule.
+* Rotate federated credentials and runner identities on a schedule, and keep VM identities scoped to the minimum required ACR permissions.
 * Keep the runner isolated, patched, and limited to the required network paths.
 * Add more alerting, audit logging, and operational monitoring around registry activity and runner access.
 * Image scanning with tools like defender, trivy, snyk.
